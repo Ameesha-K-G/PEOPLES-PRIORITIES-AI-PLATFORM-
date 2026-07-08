@@ -1,6 +1,0 @@
-{
-  "name": "People's Priorities",
-  "description": "A multilingual AI platform for parliamentary constituency planning that standardizes citizen submissions, extracts geospatial markers, matches public data, and computes simulated priority scores.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
