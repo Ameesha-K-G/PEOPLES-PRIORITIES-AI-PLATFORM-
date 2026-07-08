@@ -903,29 +903,67 @@ export default function App() {
                 <span className="text-[9px] uppercase tracking-wider text-[#00FF94] font-mono font-bold block mb-2">Live Hotspot Focus</span>
                 {hoveredHotspot ? (
                   (() => {
-                    const matchedPreset = PRESET_DEMOS.find(p => p.output.analysis.extracted_locations[0].toLowerCase().includes(hoveredHotspot.toLowerCase()));
-                    return (
-                      <div className="space-y-2 animate-fadeIn font-mono text-xs">
-                        <div className="text-white font-bold text-sm font-display flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-[#00FF94]" /> {matchedPreset?.output?.analysis?.extracted_locations?.[0]}
+                    if (hoveredHotspot.startsWith("cluster:")) {
+                      const names = hoveredHotspot.replace("cluster:", "").split(",");
+                      const matchedPresets = PRESET_DEMOS.filter(p => 
+                        names.some(name => p.output.analysis.extracted_locations[0].toLowerCase().includes(name.toLowerCase()))
+                      );
+                      return (
+                        <div className="space-y-3 animate-fadeIn font-mono text-xs">
+                          <div className="text-[#00FF94] font-bold text-xs font-display flex items-center gap-1.5 border-b border-white/10 pb-2">
+                            <Layers className="w-3.5 h-3.5 text-[#00FF94]" />
+                            {matchedPresets.length} Hotspots Grouped
+                          </div>
+                          <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                            {matchedPresets.map((matchedPreset, i) => {
+                              // Calculate dynamic Sp score
+                              const presetSp = ((matchedPreset.output.simulated_scoring_inputs.demand_intensity_dh * wd) + (matchedPreset.output.simulated_scoring_inputs.infrastructure_gap_ig * wi)) / (matchedPreset.output.simulated_scoring_inputs.estimated_cost_cp || 0.3) * matchedPreset.output.simulated_scoring_inputs.socio_economic_disadvantage_pd;
+                              const clampedPresetSp = Math.min(1.0, Math.max(0.0, presetSp));
+                              
+                              return (
+                                <div key={i} className="p-2 bg-white/5 border border-white/10 rounded space-y-1">
+                                  <div className="text-white font-bold text-xs flex items-center justify-between">
+                                    <span className="truncate">{matchedPreset.output.analysis.extracted_locations[0]}</span>
+                                    <span className="text-emerald-400 font-mono font-black text-[10px]">{clampedPresetSp.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-[10px] text-white/50">
+                                    <span>Theme:</span>
+                                    <span className="text-blue-400 font-bold truncate max-w-[120px]">{matchedPreset.output.analysis.assigned_theme}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[9px] text-white/40 leading-relaxed pt-1.5 border-t border-white/5 italic">
+                            *Click on the cluster center to automatically zoom in and expand the individual nodes.
+                          </p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-white/40">Theme:</span>
-                          <span className="text-blue-400 font-bold">{matchedPreset?.output?.analysis?.assigned_theme}</span>
+                      );
+                    } else {
+                      const matchedPreset = PRESET_DEMOS.find(p => p.output.analysis.extracted_locations[0].toLowerCase().includes(hoveredHotspot.toLowerCase()));
+                      return (
+                        <div className="space-y-2 animate-fadeIn font-mono text-xs">
+                          <div className="text-white font-bold text-sm font-display flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-[#00FF94]" /> {matchedPreset?.output?.analysis?.extracted_locations?.[0]}
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-white/40">Theme:</span>
+                            <span className="text-blue-400 font-bold">{matchedPreset?.output?.analysis?.assigned_theme}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-white/40">Demand Intensity:</span>
+                            <span>{matchedPreset?.output?.simulated_scoring_inputs?.demand_intensity_dh}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-white/40">Infra Supply Gap:</span>
+                            <span className="text-red-400 font-semibold">{matchedPreset?.output?.simulated_scoring_inputs?.infrastructure_gap_ig}</span>
+                          </div>
+                          <div className="text-[10px] text-white/50 italic leading-relaxed pt-1.5 border-t border-white/5">
+                            "{matchedPreset?.output?.analysis?.standardized_english_transcript.substring(0, 80)}..."
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-white/40">Demand Intensity:</span>
-                          <span>{matchedPreset?.output?.simulated_scoring_inputs?.demand_intensity_dh}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-white/40">Infra Supply Gap:</span>
-                          <span className="text-red-400 font-semibold">{matchedPreset?.output?.simulated_scoring_inputs?.infrastructure_gap_ig}</span>
-                        </div>
-                        <div className="text-[10px] text-white/50 italic leading-relaxed pt-1.5 border-t border-white/5">
-                          "{matchedPreset?.output?.analysis?.standardized_english_transcript.substring(0, 80)}..."
-                        </div>
-                      </div>
-                    );
+                      );
+                    }
                   })()
                 ) : (
                   <p className="text-xs text-white/30 italic font-mono">
@@ -954,13 +992,15 @@ export default function App() {
               
               {/* GIS Map Canvas header/controls overlay */}
               <div className="absolute top-4 left-4 z-10 flex gap-2">
-                <div className="bg-[#14161B]/90 backdrop-blur-md border border-white/10 rounded-lg p-2 flex items-center gap-3 shadow-lg">
+                <div className="bg-[#14161B]/90 backdrop-blur-md border border-white/10 rounded-lg p-2.5 flex items-center gap-3 shadow-lg">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#00FF94] animate-pulse"></span>
-                    <span className="text-[10px] font-bold font-mono text-white/90">GIS_RADAR</span>
+                    <span className="text-[10px] font-bold font-mono text-white/90 font-display uppercase tracking-wider">GIS_RADAR_V4</span>
                   </div>
-                  <span className="text-[9px] font-mono text-white/40 border-l border-white/10 pl-3">
-                    LAYER_OVERLAY: REGIONAL_BOUNDARIES
+                  <span className="text-[9px] font-mono text-white/40 border-l border-white/10 pl-3 flex items-center gap-2">
+                    <span>CLUSTERING: <strong className="text-[#00FF94]">AUTO</strong> (Radius: <strong className="text-white">{(65 / mapZoom).toFixed(0)}px</strong>)</span>
+                    <span className="text-white/20">|</span>
+                    <span>ZOOM: <strong className="text-white">{mapZoom.toFixed(2)}x</strong></span>
                   </span>
                 </div>
               </div>
@@ -1034,87 +1074,224 @@ export default function App() {
                   <circle cx="400" cy="300" r="180" stroke="rgba(255,255,255,0.02)" strokeDasharray="5,5" fill="none" />
                   <circle cx="400" cy="300" r="100" stroke="rgba(255,255,255,0.01)" fill="none" />
 
-                  {/* Reactive hotspots markers plotted onto coordinate pixels */}
-                  {/* Hotspot 1: Chellanam Village */}
-                  <g
-                    transform="translate(250, 430)"
-                    className="cursor-pointer group"
-                    onMouseEnter={() => setHoveredHotspot("Chellanam")}
-                    onMouseLeave={() => setHoveredHotspot(null)}
-                    onClick={() => {
-                      const matched = PRESET_DEMOS.find(p => p.id === "chellanam-school");
-                      if (matched) handleSelectPreset(matched);
-                    }}
-                  >
-                    <circle r="25" className="fill-blue-500/10 stroke-blue-500/20 group-hover:fill-blue-500/20" />
-                    {/* Simulated Pie-chart sliced segments per user request details */}
-                    <path d="M 0 0 L 0 -18 A 18 18 0 0 1 12 12 Z" fill="#00FF94" />
-                    <path d="M 0 0 L 12 12 A 18 18 0 0 1 -12 12 Z" fill="#ef4444" />
-                    <path d="M 0 0 L -12 12 A 18 18 0 0 1 0 -18 Z" fill="#3b82f6" />
+                  {/* Reactive hotspots markers with dynamic clustering relative to mapZoom level */}
+                  {(() => {
+                    // Base distance threshold in SVG pixels (at 1.0 zoom).
+                    // As the map zooms out, the threshold in SVG coordinates increases, merging points that are visually closer.
+                    const threshold = 65 / mapZoom;
                     
-                    <circle r="3" fill="#ffffff" />
-                    <text y="-28" textAnchor="middle" className="text-[10px] font-mono fill-white/80 font-bold tracking-wider">CHLN-V09</text>
-                  </g>
+                    // 1. Definition of the authoritative regional hotspots
+                    const hotspotsList = [
+                      {
+                        id: "chellanam",
+                        name: "Chellanam",
+                        fullName: "Chellanam Village",
+                        code: "CHLN-V09",
+                        x: 250,
+                        y: 430,
+                        presetId: "chellanam-school",
+                        theme: "School Upgrades",
+                        radius: 18,
+                        paths: [
+                          { d: "M 0 0 L 0 -18 A 18 18 0 0 1 12 12 Z", fill: "#00FF94" },
+                          { d: "M 0 0 L 12 12 A 18 18 0 0 1 -12 12 Z", fill: "#ef4444" },
+                          { d: "M 0 0 L -12 12 A 18 18 0 0 1 0 -18 Z", fill: "#3b82f6" }
+                        ],
+                        labelOffset: -28
+                      },
+                      {
+                        id: "munnar",
+                        name: "Munnar",
+                        fullName: "Munnar Ward",
+                        code: "MNR-W02",
+                        x: 290,
+                        y: 460,
+                        presetId: "munnar-water",
+                        theme: "Water Supply",
+                        radius: 15,
+                        paths: [
+                          { d: "M 0 0 L 0 -15 A 15 15 0 0 1 10 10 Z", fill: "#00FF94" },
+                          { d: "M 0 0 L 10 10 A 15 15 0 1 1 0 -15 Z", fill: "#eab308" }
+                        ],
+                        labelOffset: 28
+                      },
+                      {
+                        id: "jamtara",
+                        name: "Jamtara",
+                        fullName: "Jamtara Block",
+                        code: "JMTR-B12",
+                        x: 520,
+                        y: 260,
+                        presetId: "jamtara-vocational",
+                        theme: "Vocational Center",
+                        radius: 20,
+                        paths: [
+                          { d: "M 0 0 L 0 -20 A 20 20 0 1 1 -14 14 Z", fill: "#ef4444" },
+                          { d: "M 0 0 L -14 14 A 20 20 0 0 1 0 -20 Z", fill: "#a855f7" }
+                        ],
+                        labelOffset: -32
+                      },
+                      {
+                        id: "daringbadi",
+                        name: "Daringbadi",
+                        fullName: "Daringbadi Village",
+                        code: "DRGB-V04",
+                        x: 430,
+                        y: 360,
+                        presetId: "daringbadi-road",
+                        theme: "Road Connectivity",
+                        radius: 16,
+                        paths: [
+                          { d: "M 0 0 L 0 -16 A 16 16 0 1 1 -11 11 Z", fill: "#3b82f6" },
+                          { d: "M 0 0 L -11 11 A 16 16 0 0 1 0 -16 Z", fill: "#10b981" }
+                        ],
+                        labelOffset: 28
+                      }
+                    ];
 
-                  {/* Hotspot 2: Munnar Ward */}
-                  <g
-                    transform="translate(290, 460)"
-                    className="cursor-pointer group"
-                    onMouseEnter={() => setHoveredHotspot("Munnar")}
-                    onMouseLeave={() => setHoveredHotspot(null)}
-                    onClick={() => {
-                      const matched = PRESET_DEMOS.find(p => p.id === "munnar-water");
-                      if (matched) handleSelectPreset(matched);
-                    }}
-                  >
-                    <circle r="22" className="fill-amber-500/10 stroke-amber-500/20 group-hover:fill-amber-500/20" />
-                    {/* Simulated Pie segments */}
-                    <path d="M 0 0 L 0 -15 A 15 15 0 0 1 10 10 Z" fill="#00FF94" />
-                    <path d="M 0 0 L 10 10 A 15 15 0 1 1 0 -15 Z" fill="#eab308" />
-                    
-                    <circle r="3" fill="#ffffff" />
-                    <text y="28" textAnchor="middle" className="text-[10px] font-mono fill-white/80 font-bold tracking-wider">MNR-W02</text>
-                  </g>
+                    // 2. Compute dynamic clusters based on distance in coordinate space
+                    const clustersList: Array<{
+                      isCluster: boolean;
+                      points: typeof hotspotsList;
+                      x: number;
+                      y: number;
+                      id: string;
+                    }> = [];
+                    const visited = new Set<string>();
 
-                  {/* Hotspot 3: Jamtara Block */}
-                  <g
-                    transform="translate(520, 260)"
-                    className="cursor-pointer group"
-                    onMouseEnter={() => setHoveredHotspot("Jamtara")}
-                    onMouseLeave={() => setHoveredHotspot(null)}
-                    onClick={() => {
-                      const matched = PRESET_DEMOS.find(p => p.id === "jamtara-vocational");
-                      if (matched) handleSelectPreset(matched);
-                    }}
-                  >
-                    <circle r="26" className="fill-purple-500/10 stroke-purple-500/20 group-hover:fill-purple-500/20" />
-                    {/* Simulated Pie segments */}
-                    <path d="M 0 0 L 0 -20 A 20 20 0 1 1 -14 14 Z" fill="#ef4444" />
-                    <path d="M 0 0 L -14 14 A 20 20 0 0 1 0 -20 Z" fill="#a855f7" />
-                    
-                    <circle r="3" fill="#ffffff" />
-                    <text y="-32" textAnchor="middle" className="text-[10px] font-mono fill-white/80 font-bold tracking-wider">JMTR-B12</text>
-                  </g>
+                    for (const p of hotspotsList) {
+                      if (visited.has(p.id)) continue;
 
-                  {/* Hotspot 4: Daringbadi */}
-                  <g
-                    transform="translate(430, 360)"
-                    className="cursor-pointer group"
-                    onMouseEnter={() => setHoveredHotspot("Daringbadi")}
-                    onMouseLeave={() => setHoveredHotspot(null)}
-                    onClick={() => {
-                      const matched = PRESET_DEMOS.find(p => p.id === "daringbadi-road");
-                      if (matched) handleSelectPreset(matched);
-                    }}
-                  >
-                    <circle r="24" className="fill-emerald-500/10 stroke-emerald-500/20 group-hover:fill-emerald-500/20" />
-                    {/* Simulated Pie segments */}
-                    <path d="M 0 0 L 0 -16 A 16 16 0 1 1 -11 11 Z" fill="#3b82f6" />
-                    <path d="M 0 0 L -11 11 A 16 16 0 0 1 0 -16 Z" fill="#10b981" />
-                    
-                    <circle r="3" fill="#ffffff" />
-                    <text y="28" textAnchor="middle" className="text-[10px] font-mono fill-white/80 font-bold tracking-wider">DRGB-V04</text>
-                  </g>
+                      const clusterPoints = [p];
+                      visited.add(p.id);
+
+                      for (const other of hotspotsList) {
+                        if (visited.has(other.id)) continue;
+
+                        const dist = Math.sqrt((p.x - other.x) ** 2 + (p.y - other.y) ** 2);
+                        if (dist <= threshold) {
+                          clusterPoints.push(other);
+                          visited.add(other.id);
+                        }
+                      }
+
+                      if (clusterPoints.length > 1) {
+                        const sumX = clusterPoints.reduce((sum, pt) => sum + pt.x, 0);
+                        const sumY = clusterPoints.reduce((sum, pt) => sum + pt.y, 0);
+                        clustersList.push({
+                          isCluster: true,
+                          points: clusterPoints,
+                          x: sumX / clusterPoints.length,
+                          y: sumY / clusterPoints.length,
+                          id: "cluster-" + clusterPoints.map(pt => pt.id).join("-")
+                        });
+                      } else {
+                        clustersList.push({
+                          isCluster: false,
+                          points: clusterPoints,
+                          x: p.x,
+                          y: p.y,
+                          id: p.id
+                        });
+                      }
+                    }
+
+                    return (
+                      <g>
+                        {/* Hover support: Draw dynamic link lines between centroid and individual constituent nodes */}
+                        {clustersList.map((cluster) => {
+                          if (!cluster.isCluster) return null;
+                          const clusterIdString = "cluster:" + cluster.points.map(p => p.name).join(",");
+                          const isHovered = hoveredHotspot === clusterIdString;
+                          if (!isHovered) return null;
+
+                          return (
+                            <g key={`lines-${cluster.id}`}>
+                              {cluster.points.map((pt, i) => (
+                                <line
+                                  key={i}
+                                  x1={cluster.x}
+                                  y1={cluster.y}
+                                  x2={pt.x}
+                                  y2={pt.y}
+                                  stroke="#00FF94"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4,4"
+                                  opacity="0.65"
+                                  className="animate-pulse"
+                                />
+                              ))}
+                            </g>
+                          );
+                        })}
+
+                        {/* Render active markers / cluster circles */}
+                        {clustersList.map((cluster) => {
+                          if (cluster.isCluster) {
+                            const clusterIdString = "cluster:" + cluster.points.map(p => p.name).join(",");
+                            return (
+                              <g
+                                key={cluster.id}
+                                transform={`translate(${cluster.x}, ${cluster.y})`}
+                                className="cursor-pointer group"
+                                onMouseEnter={() => setHoveredHotspot(clusterIdString)}
+                                onMouseLeave={() => setHoveredHotspot(null)}
+                                onClick={() => {
+                                  // Clicking a cluster zooms the map in automatically, dispersing the cluster
+                                  setMapZoom(prev => Math.min(3, prev + 0.5));
+                                  const firstPreset = PRESET_DEMOS.find(p => p.id === cluster.points[0].presetId);
+                                  if (firstPreset) handleSelectPreset(firstPreset);
+                                }}
+                              >
+                                {/* Outer double-ring pulsing radar effect */}
+                                <circle r="34" className="fill-none stroke-[#00FF94] stroke-[1.5] opacity-25 group-hover:opacity-60 transition-all duration-300" strokeDasharray="4,4" />
+                                <circle r="26" className="fill-[#00FF94]/10 stroke-[#00FF94]/30 stroke-[2] group-hover:fill-[#00FF94]/20 transition-all" />
+                                
+                                {/* Inner coordinate lock core */}
+                                <circle r="12" fill="#0A0B0E" stroke="#00FF94" strokeWidth="2" />
+                                <text y="4" textAnchor="middle" className="text-[10px] font-mono fill-[#00FF94] font-black">{cluster.points.length}</text>
+                                
+                                {/* Dynamic Status Labels */}
+                                <text y="-40" textAnchor="middle" className="text-[9px] font-mono fill-white/80 font-bold tracking-widest uppercase">
+                                  {cluster.points.length}_SITES_CLUSTERED
+                                </text>
+                                <text y="42" textAnchor="middle" className="text-[8px] font-mono fill-white/40 tracking-wider">
+                                  CLICK_TO_EXPAND
+                                </text>
+                              </g>
+                            );
+                          } else {
+                            const pt = cluster.points[0];
+                            return (
+                              <g
+                                key={pt.id}
+                                transform={`translate(${pt.x}, ${pt.y})`}
+                                className="cursor-pointer group"
+                                onMouseEnter={() => setHoveredHotspot(pt.name)}
+                                onMouseLeave={() => setHoveredHotspot(null)}
+                                onClick={() => {
+                                  const matched = PRESET_DEMOS.find(p => p.id === pt.presetId);
+                                  if (matched) handleSelectPreset(matched);
+                                }}
+                              >
+                                <circle r={pt.radius + 6} className="fill-white/5 stroke-white/10 group-hover:fill-white/10 group-hover:stroke-[#00FF94]/30 transition-all" />
+                                
+                                {/* Segmented visual theme arcs (rendered as standard SVG paths) */}
+                                {pt.paths.map((path, idx) => (
+                                  <path key={idx} d={path.d} fill={path.fill} />
+                                ))}
+                                
+                                <circle r="3.5" fill="#ffffff" stroke="#0A0B0E" strokeWidth="1" />
+                                <text y={pt.labelOffset} textAnchor="middle" className="text-[10px] font-mono fill-white/80 font-bold tracking-wider uppercase">
+                                  {pt.code}
+                                </text>
+                              </g>
+                            );
+                          }
+                        })}
+                      </g>
+                    );
+                  })()}
 
                 </svg>
 
